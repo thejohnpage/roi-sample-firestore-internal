@@ -74,7 +74,6 @@ app.post('/event', (req, res) => {
     // create a new object from the json data. The id property
     // has been removed because it is no longer required.
     // Firestore generates its own unique ids
-    delete req.body.submit;
     const ev = {
         likes: 0,
         dislikes: 0,
@@ -91,7 +90,7 @@ app.post('/event', (req, res) => {
 // If increment is false, a like is removed.
 function changeReaction(req, res, id, type, increment) {
     if(type === 'likes' || type === 'dislikes') {
-        // return the existing objct
+        // return the existing object
         firestore.collection("Events").doc(id).get()
             .then((snapshot) => {
                 const el = snapshot.data();

@@ -120,25 +120,25 @@ function changeReaction(req, res, id, type, increment) {
 }
 
 // put because this is an update. Passes through to shared method.
-app.put('/event/like', (req, res) => {
-    changeReaction(req, res, req.body.id, 'likes',true);
+app.put('/event/like/:id', (req, res) => {
+    changeReaction(req, res, req.params.id, 'likes',true);
 });
 
 // Passes through to shared method.
 // Delete distinguishes this route from put above
-app.delete('/event/like', (req, res) => {
-    changeReaction(req, res, req.body.id, 'likes', false);
+app.delete('/event/like/:id', (req, res) => {
+    changeReaction(req, res, req.params.id, 'likes', false);
 });
 
 // put because this is an update. Passes through to shared method.
-app.put('/event/dislike', (req, res) => {
-    changeReaction(req, res, req.body.id, 'dislikes',true);
+app.put('/event/dislike/:id', (req, res) => {
+    changeReaction(req, res, req.params.id, 'dislikes',true);
 });
 
 // Passes through to shared method.
 // Delete distinguishes this route from put above
-app.delete('/event/dislike', (req, res) => {
-    changeReaction(req, res, req.body.id, 'dislikes', false);
+app.delete('/event/dislike/:id', (req, res) => {
+    changeReaction(req, res, req.params.id, 'dislikes', false);
 });
 
 app.use((err, req, res, next) => {

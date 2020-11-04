@@ -74,6 +74,7 @@ app.post('/event', (req, res) => {
     // create a new object from the json data. The id property
     // has been removed because it is no longer required.
     // Firestore generates its own unique ids
+    delete req.body.submit;
     const ev = {
         likes: 0,
         dislikes: 0,

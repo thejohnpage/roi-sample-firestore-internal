@@ -24,24 +24,12 @@ const app = express();
 // the backend server will parse json, not a form request
 app.use(bodyParser.json());
 
-// mock events data - for a real solution this data should be coming 
-// from a cloud data store
-const mockEvents = {
-    events: [
-        { title: 'an event', id: 1, description: 'something really cool', location: 'Joes pizza', likes: 0 },
-        { title: 'another event', id: 2, description: 'something even cooler', location: 'Johns pizza', likes: 0 }
-    ]
-};
-
-
-
-
 // health endpoint - returns an empty array
 app.get('/', (req, res) => {
-    res.json([]);
+    res.json({message: 'Events backend with Firestore'});
 });
 
-// version endpoint to provide easy convient method to demonstrating tests pass/fail
+// version endpoint to provide easy convenient method to demonstrating tests pass/fail
 app.get('/version', (req, res) => {
     res.json({ version: '1.0.0' });
 });
@@ -50,28 +38,25 @@ app.get('/version', (req, res) => {
 // responsible for retrieving events from firestore and adding 
 // firestore's generated id to the returned object
 function getEvents(req, res) {
+    const ret = { events: [] };
     firestore.collection("Events").get()
         .then((snapshot) => {
             if (!snapshot.empty) {
-                const ret = { events: [] };
-                snapshot.docs.forEach(element => {
+                snapshot.docs.forEach(doc => {
                     //get data
-                    const el = element.data();
+                    const item = doc.data();
                     //get internal firestore id
-                    el._id = element.id;
+                    item.id = doc.id;
                     //add object to array
-                    ret.events.push(el);
+                    ret.events.push(item);
                 }, this);
-                console.log(ret);
-                res.json(ret);
-            } else {
-                // if no data has yet been added to firestore, return mock data
-                res.json(mockEvents);
             }
+            console.log(ret);
+            res.json(ret);
         })
         .catch((err) => {
             console.error('Error getting events', err);
-            res.json(mockEvents);
+            res.json(ret);
         });
 };
 
@@ -90,10 +75,9 @@ app.post('/event', (req, res) => {
     // has been removed because it is no longer required.
     // Firestore generates its own unique ids
     const ev = {
-        title: req.body.title,
-        description: req.body.description,
-        location: req.body.location,
-        likes: 0
+        likes: 0,
+        dislikes: 0,
+        ...req.body
     }
     firestore.collection("Events").add(ev).then(ret => {
         // return events using shared method that adds __id
@@ -104,41 +88,57 @@ app.post('/event', (req, res) => {
 
 // function used by both like and unlike. If increment = true, a like is added.
 // If increment is false, a like is removed.
-function changeLikes(req, res, id, increment) {
-    // return the existing objct
-    firestore.collection("Events").doc(id).get()
-        .then((snapshot) => {
-            const el = snapshot.data();
-            // if you have elements in firestore with no likes property
-            if (!el.likes) {
-                el.likes = 0;
-            }
-            // increment the likes
-            if (increment) {
-                el.likes++;
-            }
-            else {
-                el.likes--;
-            }
-            // do the update
-            firestore.collection("Events")
-                .doc(id).update(el).then((ret) => {
+function changeReaction(req, res, id, type, increment) {
+    if(type === 'likes' || type === 'dislikes') {
+        // return the existing objct
+        firestore.collection("Events").doc(id).get()
+            .then((snapshot) => {
+                const el = snapshot.data();
+                // if you have elements in firestore with no likes property
+                if (!el[type]) {
+                    el[type] = 0;
+                }
+                // increment the likes
+                if (increment) {
+                    el[type]++;
+                }
+                else {
+                    el[type]--;
+                }
+                // do the update
+                firestore.collection("Events")
+                    .doc(id).update(el).then((ret) => {
                     // return events using shared method that adds __id
                     getEvents(req, res);
                 });
-        })
-        .catch(err => { console.log(err) });
+            })
+            .catch(err => { console.log(err) });
+    } else {
+        getEvents(req, res);
+    }
+
 }
 
 // put because this is an update. Passes through to shared method.
 app.put('/event/like', (req, res) => {
-    changeLikes(req, res, req.body.id, true);
+    changeReaction(req, res, req.body.id, 'likes',true);
 });
 
 // Passes through to shared method.
 // Delete distinguishes this route from put above
 app.delete('/event/like', (req, res) => {
-    changeLikes(req, res, req.body.id, false);
+    changeReaction(req, res, req.body.id, 'likes', false);
+});
+
+// put because this is an update. Passes through to shared method.
+app.put('/event/dislike', (req, res) => {
+    changeReaction(req, res, req.body.id, 'dislikes',true);
+});
+
+// Passes through to shared method.
+// Delete distinguishes this route from put above
+app.delete('/event/dislike', (req, res) => {
+    changeReaction(req, res, req.body.id, 'dislikes', false);
 });
 
 app.use((err, req, res, next) => {

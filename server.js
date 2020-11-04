@@ -125,10 +125,6 @@ app.put('/event/like/:id', (req, res) => {
 });
 
 // Passes through to shared method.
-// Delete distinguishes this route from put above
-app.delete('/event/like/:id', (req, res) => {
-    changeReaction(req, res, req.params.id, 'likes', false);
-});
 
 // put because this is an update. Passes through to shared method.
 app.put('/event/dislike/:id', (req, res) => {
@@ -137,8 +133,12 @@ app.put('/event/dislike/:id', (req, res) => {
 
 // Passes through to shared method.
 // Delete distinguishes this route from put above
-app.delete('/event/dislike/:id', (req, res) => {
-    changeReaction(req, res, req.params.id, 'dislikes', false);
+app.delete('/event/:id', (req, res) => {
+    firestore.collection('Events').doc(req.params.id).delete()
+        .then(() => {
+            getEvents(req, res);
+        })
+        .catch(err => { console.log(err) })
 });
 
 app.use((err, req, res, next) => {

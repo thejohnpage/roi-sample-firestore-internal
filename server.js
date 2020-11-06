@@ -85,6 +85,17 @@ app.post('/event', (req, res) => {
     });
 });
 
+app.put('/event/:id', (req, res) => {
+    const ev = {
+        ...req.body
+    }
+    firestore.collection("Events")
+        .doc(req.params.id).update(ev).then((ret) => {
+        // return events using shared method that adds __id
+        getEvents(req, res);
+    });
+});
+
 
 // function used by both like and unlike. If increment = true, a like is added.
 // If increment is false, a like is removed.

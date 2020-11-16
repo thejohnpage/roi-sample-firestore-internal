@@ -8,15 +8,9 @@ const express = require('express');
 // https://www.npmjs.com/package/body-parser
 const bodyParser = require('body-parser');
 
-// bring in firestore
-const Firestore = require("@google-cloud/firestore");
-
-// configure with current project
-const firestore = new Firestore(
-    {
-        projectId: process.env.GOOGLE_CLOUD_PROJECT
-    }
-);
+// bring in database service
+// const db = require('./services/mock.database.service');
+const db = require('./services/firestore.database.service');
 
 // create the server
 const app = express();
@@ -35,121 +29,74 @@ app.get('/version', (req, res) => {
 });
 
 
-// responsible for retrieving events from firestore and adding 
-// firestore's generated id to the returned object
-function getEvents(req, res) {
-    const ret = { events: [] };
-    firestore.collection("Events").get()
-        .then((snapshot) => {
-            if (!snapshot.empty) {
-                snapshot.docs.forEach(doc => {
-                    //get data
-                    const item = doc.data();
-                    //get internal firestore id
-                    item.id = doc.id;
-                    //add object to array
-                    ret.events.push(item);
-                }, this);
-            }
-            console.log(ret);
-            res.json(ret);
-        })
-        .catch((err) => {
-            console.error('Error getting events', err);
-            res.json(ret);
-        });
-};
-
-
 
 // this has been modifed to call the shared getEvents method that
 // returns data from firestore
 app.get('/events', (req, res) => {
-    getEvents(req, res);
+    db.getEvents()
+        .then((data) => {
+            console.log(data);
+            res.json(data);
+        })
+        .catch((err) => {
+            throw new Error(`getEvents - ${err.message}`);
+        });
 });
 
 // This has been modified to insert into firestore, and then call 
 // the shared getEvents method.
 app.post('/event', (req, res) => {
-    // create a new object from the json data. The id property
-    // has been removed because it is no longer required.
-    // Firestore generates its own unique ids
-    const ev = {
-        likes: 0,
-        dislikes: 0,
-        ...req.body
-    }
-    firestore.collection("Events").add(ev).then(ret => {
-        // return events using shared method that adds __id
-        getEvents(req, res);
-    });
+    db.addEvent(req.body)
+        .then((data) => {
+            console.log(data);
+            res.json(data);
+        })
+        .catch((err) => {
+            throw new Error(`addEvent - ${err.message}`);
+        });
 });
 
 app.put('/event/:id', (req, res) => {
-    const ev = {
-        ...req.body
-    }
-    firestore.collection("Events")
-        .doc(req.params.id).update(ev).then((ret) => {
-        // return events using shared method that adds __id
-        getEvents(req, res);
-    });
+    db.updateEvent(req.params.id, req.body)
+        .then (data => {
+            res.json(data);
+        })
+        .catch(err => {
+            throw new Error(`Update Event - ${err.message}`);
+        })
 });
-
-
-// function used by both like and unlike. If increment = true, a like is added.
-// If increment is false, a like is removed.
-function changeReaction(req, res, id, type, increment) {
-    if(type === 'likes' || type === 'dislikes') {
-        // return the existing object
-        firestore.collection("Events").doc(id).get()
-            .then((snapshot) => {
-                const el = snapshot.data();
-                // if you have elements in firestore with no likes property
-                if (!el[type]) {
-                    el[type] = 0;
-                }
-                // increment the likes
-                if (increment) {
-                    el[type]++;
-                }
-                else {
-                    el[type]--;
-                }
-                // do the update
-                firestore.collection("Events")
-                    .doc(id).update(el).then((ret) => {
-                    // return events using shared method that adds __id
-                    getEvents(req, res);
-                });
-            })
-            .catch(err => { console.log(err) });
-    } else {
-        getEvents(req, res);
-    }
-
-}
 
 // put because this is an update. Passes through to shared method.
 app.put('/event/like/:id', (req, res) => {
-    changeReaction(req, res, req.params.id, 'likes',true);
+    db.incLikes(req.params.id)
+        .then(data => {
+            res.json(data);
+        })
+        .catch(err => {
+            throw new Error(`Like Event - ${err.message}`);
+        });
 });
-
-// Passes through to shared method.
 
 // put because this is an update. Passes through to shared method.
 app.put('/event/dislike/:id', (req, res) => {
-    changeReaction(req, res, req.params.id, 'dislikes',true);
+    db.incDisLikes(req.params.id)
+        .then(data => {
+            res.json(data);
+        })
+        .catch(err => {
+            throw new Error(`DisLike Event - ${err.message}`);
+        });
 });
 
-// Passes through to shared method.
 // Delete distinguishes this route from put above
 app.delete('/event/:id', (req, res) => {
-    firestore.collection('Events').doc(req.params.id).delete()
-        .then(() => {
-            getEvents(req, res);
+    db.deleteEvent(req.params.id)
+        .then(data => {
+           res.json(data);
         })
-        .catch(err => { console.log(err) })
+        .catch(err => {
+            throw new Error(`Delete Event - ${err.message}`);
+        });
 });
 
 app.use((err, req, res, next) => {

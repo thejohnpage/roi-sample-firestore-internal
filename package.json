@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "start:dev": "GOOGLE_CLOUD_PROJECT=gcp-demos-2020 KEY_FILE_NAME=./secrets/gcp-demos-2020-eb17e5a6ee44.json node ./server.js",
     "test": "nyc mocha --exit"
   },
   "keywords": [],
